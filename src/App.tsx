@@ -23,6 +23,7 @@ import {
   copyAnnotatedImageToClipboard,
   downloadAnnotatedImage,
 } from './utils/exportImage';
+import { trackImageCopy, trackImageDownload } from './utils/analytics';
 
 export default function App() {
   const [imageMeta, setImageMeta] = useState<ImageMeta | null>(null);
@@ -297,6 +298,7 @@ export default function App() {
     const result = await copyAnnotatedImageToClipboard(imageRef.current, annotations);
     setIsExporting(false);
     if (result.success) {
+      trackImageCopy(annotations.length);
       addToast('success', result.message);
     } else {
       addToast('error', result.message);
@@ -309,6 +311,7 @@ export default function App() {
     setIsExporting(true);
     try {
       await downloadAnnotatedImage(imageRef.current, annotations, imageMeta.name);
+      trackImageDownload(annotations.length);
       addToast('success', 'Image downloaded successfully');
     } catch {
       addToast('error', 'Failed to generate download');

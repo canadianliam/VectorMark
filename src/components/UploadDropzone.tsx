@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UploadCloud, Clipboard, Image as ImageIcon, Sparkles, FileText, LayoutDashboard, Cpu } from 'lucide-react';
 import { SAMPLE_IMAGES } from '../utils/sampleImages';
 import { ImageMeta } from '../types/annotation';
+import { trackImageUpload } from '../utils/analytics';
 
 interface UploadDropzoneProps {
   onImageLoaded: (meta: ImageMeta) => void;
@@ -11,7 +12,7 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onImageLoaded })
   const [isDragging, setIsDragging] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const processFile = (file: File) => {
+  const processFile = (file: File, method: 'drop' | 'file_input' | 'paste') => {
     if (!file.type.startsWith('image/')) {
       setErrorMessage('Please select a valid image file (PNG, JPG, WebP, etc.)');
       return;
@@ -22,11 +23,14 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onImageLoaded })
       const src = e.target?.result as string;
       const img = new Image();
       img.onload = () => {
+        const width = img.naturalWidth || img.width;
+        const height = img.naturalHeight || img.height;
+        trackImageUpload(method, width, height);
         onImageLoaded({
           src,
           name: file.name,
-          width: img.naturalWidth || img.width,
-          height: img.naturalHeight || img.height,
+          width,
+          height,
         });
       };
       img.src = src;
@@ -45,7 +49,7 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onImageLoaded })
           const file = items[i].getAsFile();
           if (file) {
             e.preventDefault();
-            processFile(file);
+            processFile(file, 'paste');
             return;
           }
         }
@@ -70,13 +74,13 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onImageLoaded })
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      processFile(e.dataTransfer.files[0]);
+      processFile(e.dataTransfer.files[0], 'drop');
     }
   };
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      processFile(e.target.files[0]);
+      processFile(e.target.files[0], 'file_input');
     }
   };
 
@@ -86,6 +90,7 @@ export const UploadDropzone: React.FC<UploadDropzoneProps> = ({ onImageLoaded })
     const dataUrl = sample.generateDataUrl();
     const img = new Image();
     img.onload = () => {
+      trackImageUpload('sample_preset', img.naturalWidth, img.naturalHeight);
       onImageLoaded({
         src: dataUrl,
         name: `${sample.id}-sample.png`,
